@@ -1,4 +1,5 @@
 package com.example.Demo_AI.service;
+
 import com.example.Demo_AI.aiTools.CalculatorTool;
 import com.example.Demo_AI.aiTools.currencyExchange.CurrencyExchangeTool;
 import com.example.Demo_AI.aiTools.weather.WeatherTool;
@@ -7,6 +8,7 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,9 +18,9 @@ public class SummerizeService {
 
     private final ChatClient chatClient;
     private final CalculatorTool calculatorTool;
-    private  final WeatherTool weatherTool;
+    private final WeatherTool weatherTool;
     private final CurrencyExchangeTool currencyExchangeTool;
-    private List<Message> history=new ArrayList<>();
+    private List<Message> history = new ArrayList<>();
 
     private final String SYSTEM_PROMPT = """
         You are a helpful AI assistant with access to external tools.
@@ -32,29 +34,37 @@ public class SummerizeService {
         7. Write numbers normally (e.g. "10,000" not "10\\,000").
         8. Keep responses short, clear, and conversational — like a normal chat message.
         """;
+
     public SummerizeService(ChatClient.Builder builder,
                             CalculatorTool calculatorTool,
                             WeatherTool weatherTool,
                             CurrencyExchangeTool currencyExchangeTool
     ) {
         this.chatClient = builder.build();
-        this.calculatorTool=calculatorTool;
-        this.weatherTool=weatherTool;
-        this.currencyExchangeTool=currencyExchangeTool;
+        this.calculatorTool = calculatorTool;
+        this.weatherTool = weatherTool;
+        this.currencyExchangeTool = currencyExchangeTool;
     }
 
-    public String chat(String message) {
+    public Flux<String> chat(String message) {
 
         history.add(new UserMessage(message));
-        String response = chatClient.prompt()
+
+        StringBuilder fullResponse = new StringBuilder();
+
+        Flux<String> response = chatClient.prompt()
                 .system(SYSTEM_PROMPT)
                 .messages(history)
-                .tools(calculatorTool,weatherTool,currencyExchangeTool)
-                .call()
-                .content();
-        history.add(new AssistantMessage(response));
+                .tools(calculatorTool, weatherTool, currencyExchangeTool)
+                .stream()
+                .content()
+                .doOnNext(fullResponse::append)
+                .doOnComplete(() ->
+                        history.add(
+                                new AssistantMessage(fullResponse.toString())
+                        )
+                );
+
         return response;
     }
-
-
 }

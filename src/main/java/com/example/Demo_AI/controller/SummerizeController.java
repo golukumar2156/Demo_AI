@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Flux;
 
 @RestController
 @RequestMapping("/api")
@@ -19,7 +20,7 @@ public class SummerizeController {
     }
 
     @PostMapping("/chat")
-    public String chat(@RequestBody String ticket) {
+    public Flux<String> chat(@RequestBody String ticket) {
         return summerizeService.chat(ticket);
     }
 }
